@@ -39,3 +39,7 @@ htmlcov/
 # Processed exports (optional generated data)
 data/processed/*.csv
 !data/processed/.gitkeep
+
+# Frontend build and dependencies
+frontend/node_modules/
+frontend/dist/

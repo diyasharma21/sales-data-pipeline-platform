@@ -71,7 +71,7 @@ flowchart TD
         VALIDATE["src/validate.py\nValidation Engine\n- Non-null Checks\n- Positive Quantity (> 0)\n- Non-negative Price (>= 0)\n- Date Format Verification\n- Batch Deduplication\n- Domain Taxonomy (Category & Region)"]
         EXTRACT --> VALIDATE
         
-        VALIDATE -->|Rejected Records| QUARANTINE_DF["Quarantined DataFrame\n+ Rejection Reasons\n+ Source File Lineage"]
+        VALIDATE -->|Rejected Records| QUARANTINE_DF["Quarantined DataFrame\n+ Rejection Reasons\n+ Lineage Metadata"]
         VALIDATE -->|Accepted Records| CLEAN_DF["Clean Valid Records"]
     end
 
@@ -86,10 +86,17 @@ flowchart TD
         META["src/load.py\nPipeline Audit Logger"] -->|Insert Run Metrics| RUNS_TABLE[("pipeline_runs\n(Operational Audit)\nPK: run_id")]
     end
 
-    subgraph Analytics ["5. Business Analytics Layer"]
-        SQL["sql/analytics_queries.sql\nsrc/analytics.py\n- Executive KPIs\n- Revenue by Category & Region\n- Top 5 Best-Selling Products\n- Daily/Monthly Trends\n- Average Order Value (AOV)"]
-        FACT_TABLE --> SQL
-        SQL --> REPORT["Terminal Summary\n& Audit CSV Exports"]
+    subgraph BackendAPI ["5. RESTful Backend Layer (FastAPI)"]
+        API["FastAPI App (src/api/)\n- /api/dashboard/summary\n- /api/analytics/*\n- /api/pipeline/*\n- /api/data-quality/*\n- /api/database/*"]
+        FACT_TABLE --> API
+        REJECT_TABLE --> API
+        RUNS_TABLE --> API
+    end
+
+    subgraph FrontendDashboard ["6. Interactive Web Dashboard (React + TypeScript)"]
+        DASH["React + Vite + Tailwind CSS + Recharts\n1. Platform Overview\n2. Sales Analytics\n3. Pipeline Monitoring\n4. Data Quality & Quarantine\n5. Database Explorer"]
+        API -->|JSON REST Responses| DASH
+        DASH -->|Trigger Pipeline Runs| API
     end
 ```
 
@@ -97,16 +104,22 @@ flowchart TD
 
 ## 4. Technology Stack
 
-| Component | Technology | Version | Purpose |
-|-----------|------------|---------|---------|
-| **Language** | Python | 3.13+ | Core programming and pipeline orchestration |
-| **Data Processing** | Pandas | 2.2+ | In-memory data manipulation, vectorized casting, cleaning |
-| **Database** | PostgreSQL | 15+ | Target analytical data warehouse (ACID compliant) |
-| **Database Driver** | Psycopg2-binary | 2.9+ | High-performance C-extension database adapter |
-| **ORM / Core Engine** | SQLAlchemy | 2.0+ | Dialect-agnostic DDL management, transactions, connection pooling |
-| **Testing** | Pytest & Pytest-cov | 8.3+ | Automated unit tests, fixture management, code coverage |
-| **Configuration** | Python-dotenv | 1.1+ | Environment variable management (12-factor application) |
-| **Logging** | Python Logging | Standard Lib | Structured dual logging (stdout + rotating file) |
+| Layer | Component | Technology | Version | Purpose |
+|---|---|---|---|---|
+| **Frontend** | Framework | React + TypeScript | 19.x / 5.x | Interactive single-page analytics application |
+| | Build Tool | Vite | 6.x | Fast development server & optimized production bundling |
+| | Styling | Tailwind CSS | 3.x | Modern, responsive SaaS design system |
+| | Visualization | Recharts | 2.15+ | High-performance SVG charts (Area, Bar, Pie) |
+| | Icons | Lucide React | 0.475+ | Clean, consistent UI iconography |
+| **Backend API** | Web Framework | FastAPI | 0.141+ | High-performance asynchronous REST API |
+| | Data Validation | Pydantic | 2.10+ | Strict type validation and JSON serialization |
+| | ASGI Server | Uvicorn | 0.52+ | Production-ready ASGI server |
+| **Core ETL** | Language | Python | 3.13+ | Ingestion, validation, transformation logic |
+| | Data Processing | Pandas | 2.2+ | Tabular manipulation, vectorized parsing |
+| | Database Engine | SQLAlchemy | 2.0+ | Dialect-agnostic DDL, upserts & transactions |
+| | Database Driver | Psycopg2-binary | 2.9+ | High-speed C-extension PostgreSQL driver |
+| | Database | PostgreSQL | 15+ | Target analytical data warehouse (ACID compliant) |
+| | Testing | Pytest & Pytest-cov | 8.3+ | Automated test suite (32 tests, 91% coverage) |
 
 ---
 
@@ -338,21 +351,53 @@ python main.py -i data/raw/sales_clean_batch.csv
 ```
 *Expected Result*: Existing records are updated; total order count and revenue do NOT double-count.
 
-### 4. Command-Line Options
+### 5. Running the Web Analytics Platform (Frontend + Backend)
+
+You can launch both the FastAPI backend and React frontend using our PowerShell helper or direct commands:
+
 ```powershell
-# Custom input file
-python main.py -i path\to\your_file.csv
+# Option 1: Using the PowerShell Task Runner
+.\run.ps1 server      # Terminal 1: Starts FastAPI backend on http://127.0.0.1:8000
+.\run.ps1 ui          # Terminal 2: Starts React Vite frontend on http://127.0.0.1:5173
 
-# Custom database connection string
-python main.py --db-url postgresql+psycopg2://postgres:password@localhost:5432/sales_dw
+# Option 2: Direct Commands
+# Start Backend:
+python server.py --port 8000 --reload
 
-# Run without saving CSV exports to data/processed/
-python main.py --no-export
+# Start Frontend:
+cd frontend
+npm run dev
 ```
+
+Open your browser at **`http://127.0.0.1:5173`** to access the interactive analytics platform.
 
 ---
 
-## 12. Automated Testing Suite
+## 12. RESTful Backend API Reference
+
+The FastAPI backend exposes modular, parameterized, and secure endpoints:
+
+| Method | Endpoint | Description | Query / Body Parameters |
+|---|---|---|---|
+| `GET` | `/api/health` | Healthcheck & database dialect connectivity verification | None |
+| `GET` | `/api/dashboard/summary` | Top-level executive KPIs, pass rate, and last run | None |
+| `GET` | `/api/analytics/revenue-trend` | Time-series revenue and volume trends | `granularity` (`daily`/`monthly`), `start_date`, `end_date` |
+| `GET` | `/api/analytics/category-breakdown` | Sales revenue and volume grouped by category | None |
+| `GET` | `/api/analytics/region-breakdown` | Sales performance and AOV across regions | None |
+| `GET` | `/api/analytics/top-products` | Top N best-selling products by revenue | `limit` (default: 5, max: 50) |
+| `GET` | `/api/analytics/sales-records` | Paginated, searchable fact table records | `page`, `page_size`, `search`, `category`, `region`, `sort_by`, `sort_order` |
+| `GET` | `/api/pipeline/summary` | Operational run counts (total, success, failed, partial) | None |
+| `GET` | `/api/pipeline/runs` | Paginated historical batch execution logs | `page`, `page_size`, `status` |
+| `GET` | `/api/pipeline/files` | Available raw CSV datasets in `data/raw/` | None |
+| `POST` | `/api/pipeline/run` | Securely trigger ETL execution for a dataset | JSON: `{"filename": "sales_sample.csv"}` |
+| `GET` | `/api/data-quality/summary` | Quality pass rate, failure reasons breakdown | None |
+| `GET` | `/api/data-quality/rejected-records` | Paginated quarantined anomaly records | `page`, `page_size`, `search`, `reason` |
+| `GET` | `/api/database/tables` | Schema definitions and row counts for approved tables | None |
+| `GET` | `/api/database/tables/{table}/records` | Read-only parameterized table explorer | `page`, `page_size`, `search`, `sort_by`, `sort_order` |
+
+---
+
+## 13. Automated Testing Suite
 
 The project includes an automated test suite implemented with `pytest` covering all edge cases:
 - Missing input files, 0-byte files, and header-only files
