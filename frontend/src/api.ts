@@ -162,6 +162,20 @@ export const api = {
     return handleResponse(res);
   },
 
+  syncRemoteServer: async (payload: {
+    source_type: 'db' | 'api';
+    remote_url?: string;
+    api_key?: string;
+    days_back?: number;
+  }): Promise<{ status: string; message: string; records_synced: number }> => {
+    const res = await fetch(`${BASE_URL}/pipeline/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(res);
+  },
+
   // Data Quality
   getDataQualitySummary: async (): Promise<DataQualitySummary> => {
     const res = await fetch(`${BASE_URL}/data-quality/summary`);

@@ -13,8 +13,12 @@ from src.api.schemas import (
     PipelineRunItem,
     PipelineTriggerRequest,
     PipelineTriggerResponse,
+    RemoteSyncRequest,
+    RemoteSyncResponse,
 )
 from src.config import RAW_DATA_DIR
+from src.connectors.remote_api import sync_from_remote_api
+from src.connectors.remote_db import sync_from_remote_database
 from src.load import get_db_engine
 
 router = APIRouter(prefix="/api/pipeline", tags=["Pipeline"])
@@ -250,3 +254,40 @@ async def upload_pipeline_file(file: UploadFile = File(...)):
         "size_bytes": target_path.stat().st_size,
         "message": f"File '{safe_name}' uploaded successfully to data/raw/.",
     }
+
+
+@router.post("/sync", response_model=RemoteSyncResponse)
+def trigger_remote_sync(payload: RemoteSyncRequest) -> RemoteSyncResponse:
+    """Execute on-demand sync from a remote database server or REST API."""
+    try:
+        if payload.source_type == "db":
+            loaded = sync_from_remote_database(
+                remote_db_url=payload.remote_url,
+                days_back=payload.days_back,
+            )
+            return RemoteSyncResponse(
+                status="SUCCESS",
+                message=f"Successfully extracted, validated and synced {loaded} records from remote database.",
+                records_synced=loaded,
+            )
+        elif payload.source_type == "api":
+            loaded = sync_from_remote_api(
+                api_url=payload.remote_url,
+                api_key=payload.api_key,
+                days_back=payload.days_back,
+            )
+            return RemoteSyncResponse(
+                status="SUCCESS",
+                message=f"Successfully fetched, validated and synced {loaded} records from remote API.",
+                records_synced=loaded,
+            )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid source_type '{payload.source_type}'. Choose 'db' or 'api'.",
+            )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Remote synchronization failed: {str(exc)}",
+        )

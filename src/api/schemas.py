@@ -194,3 +194,16 @@ class ManualOrderResponse(BaseModel):
     order_id: str
     is_valid: bool
     rejection_reason: Optional[str] = None
+
+
+class RemoteSyncRequest(BaseModel):
+    source_type: str = "db"
+    remote_url: Optional[str] = None
+    api_key: Optional[str] = None
+    days_back: int = 1
+
+
+class RemoteSyncResponse(BaseModel):
+    status: str
+    message: str
+    records_synced: int
