@@ -1,0 +1,11 @@
+order_id,order_date,customer_id,product,category,quantity,unit_price,region
+ORD-CLEAN-001,2026-10-01,CUST-901,Dell UltraSharp 27 Monitor,Electronics,2,399.99,North
+ORD-CLEAN-002,2026-10-01,CUST-902,Sony WH-1000XM5 Headphones,Audio,1,349.00,West
+ORD-CLEAN-003,2026-10-02,CUST-903,Ergonomic Mesh Chair,Furniture,2,249.50,East
+ORD-CLEAN-004,2026-10-02,CUST-904,Logitech MX Master 3S Mouse,Accessories,3,99.99,Central
+ORD-CLEAN-005,2026-10-03,CUST-905,Standing Desk Converter,Furniture,1,189.00,South
+ORD-CLEAN-006,2026-10-03,CUST-906,Mechanical Keyboard Cherry MX,Accessories,2,119.50,North
+ORD-CLEAN-007,2026-10-04,CUST-907,LaserJet Pro Monochrome Printer,Office Supplies,1,289.00,West
+ORD-CLEAN-008,2026-10-04,CUST-908,Anker USB-C Thunderbolt Hub,Accessories,4,59.99,East
+ORD-CLEAN-009,2026-10-05,CUST-909,Bose QuietComfort Earbuds,Audio,2,199.00,Central
+ORD-CLEAN-010,2026-10-05,CUST-910,Apple MacBook Air M2 Sleeve,Accessories,5,29.99,South

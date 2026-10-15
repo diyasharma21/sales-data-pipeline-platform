@@ -1,0 +1,4 @@
+order_id,order_date,customer_id,product,category,quantity,unit_price,region
+ORD-CLEAN-001,2026-10-01,CUST-901,Dell UltraSharp 27 Monitor,Electronics,5,350.00,North
+ORD-CLEAN-002,2026-10-01,CUST-902,Sony WH-1000XM5 Headphones,Audio,3,320.00,West
+ORD-CLEAN-011,2026-10-11,CUST-921,Logitech Brio 4K Webcam,Electronics,2,179.99,Central

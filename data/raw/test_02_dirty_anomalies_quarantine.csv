@@ -1,0 +1,11 @@
+order_id,order_date,customer_id,product,category,quantity,unit_price,region
+ORD-FAIL-001,2026-10-06,CUST-911,Wireless Gaming Mouse,Accessories,-3,49.99,North
+ORD-FAIL-002,2026-10-06,CUST-912,Adjustable Footrest,Furniture,0,35.00,West
+ORD-FAIL-003,2026-10-07,CUST-913,Noise Cancelling Mic,Audio,2,-89.99,East
+ORD-FAIL-004,2026-99-99,CUST-914,Monitor Light Bar,Accessories,1,55.00,Central
+ORD-FAIL-005,yesterday,CUST-915,Desk Cable Organizer,Accessories,3,15.00,South
+ORD-FAIL-006,2026-10-08,,Dual Arm Monitor Stand,Furniture,1,79.00,North
+ORD-FAIL-007,2026-10-08,CUST-917,,Electronics,2,120.00,West
+ORD-FAIL-008,2026-10-09,CUST-918,Hardware Crypto Ledger,Cryptocurrency,1,149.00,East
+ORD-FAIL-009,2026-10-09,CUST-919,Heated Desk Pad,Accessories,1,39.00,Antarctica
+ORD-FAIL-010,2026-10-10,CUST-920,Aluminum Laptop Stand,Accessories,five,45.00,Central
