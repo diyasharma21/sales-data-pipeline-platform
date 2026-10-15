@@ -1,10 +1,9 @@
-"""Pipeline Monitoring and Execution endpoints."""
-
 from datetime import datetime
 import math
 from pathlib import Path
+import shutil
 from typing import Any, List, Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from sqlalchemy import text
 
 from main import run_pipeline
@@ -222,3 +221,32 @@ def trigger_pipeline_run(payload: PipelineTriggerRequest) -> PipelineTriggerResp
             exit_code=exit_code,
             filename=safe_filename,
         )
+
+
+@router.post("/upload")
+async def upload_pipeline_file(file: UploadFile = File(...)):
+    """Upload a new CSV file directly to data/raw/ directory for processing."""
+    if not file.filename or not file.filename.lower().endswith(".csv"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file format. Only .csv files are supported.",
+        )
+
+    safe_name = Path(file.filename).name
+    target_path = RAW_DATA_DIR / safe_name
+
+    try:
+        with target_path.open("wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to save uploaded file: {str(exc)}",
+        )
+
+    return {
+        "status": "SUCCESS",
+        "filename": safe_name,
+        "size_bytes": target_path.stat().st_size,
+        "message": f"File '{safe_name}' uploaded successfully to data/raw/.",
+    }

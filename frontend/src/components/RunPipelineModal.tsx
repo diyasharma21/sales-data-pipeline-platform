@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { X, Play, CheckCircle2, AlertTriangle, FileText, Loader2, Database, ShieldAlert } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import { X, Play, CheckCircle2, AlertTriangle, FileText, Loader2, Upload, Plus } from 'lucide-react';
 import { api } from '../api';
 import { RawFileItem } from '../types';
 
@@ -17,28 +17,63 @@ export const RunPipelineModal: React.FC<RunPipelineModalProps> = ({
   const [files, setFiles] = useState<RawFileItem[]>([]);
   const [selectedFile, setSelectedFile] = useState<string>('sales_sample.csv');
   const [isLoadingFiles, setIsLoadingFiles] = useState<boolean>(false);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [executionResult, setExecutionResult] = useState<{
     status: string;
     message: string;
   } | null>(null);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const refreshFiles = () => {
+    setIsLoadingFiles(true);
+    api
+      .getAvailableFiles()
+      .then((res) => {
+        setFiles(res.files);
+        if (res.files.length > 0 && !res.files.some((f) => f.filename === selectedFile)) {
+          setSelectedFile(res.files[0].filename);
+        }
+      })
+      .catch((err) => console.error('Failed to load raw files:', err))
+      .finally(() => setIsLoadingFiles(false));
+  };
+
   useEffect(() => {
     if (isOpen) {
       setExecutionResult(null);
-      setIsLoadingFiles(true);
-      api
-        .getAvailableFiles()
-        .then((res) => {
-          setFiles(res.files);
-          if (res.files.length > 0 && !res.files.some((f) => f.filename === selectedFile)) {
-            setSelectedFile(res.files[0].filename);
-          }
-        })
-        .catch((err) => console.error('Failed to load raw files:', err))
-        .finally(() => setIsLoadingFiles(false));
+      setUploadError(null);
+      refreshFiles();
     }
   }, [isOpen]);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      setUploadError('Only CSV files (.csv) are supported.');
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadError(null);
+
+    try {
+      const res = await api.uploadPipelineFile(file);
+      setSelectedFile(res.filename);
+      refreshFiles();
+    } catch (err: any) {
+      setUploadError(err.message || 'Failed to upload CSV file.');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -89,16 +124,46 @@ export const RunPipelineModal: React.FC<RunPipelineModalProps> = ({
         <div className="p-6 space-y-5">
           {/* File Selection */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-              Select Raw Source File (data/raw/)
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                Select Raw Source File (data/raw/)
+              </label>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100/80 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+              >
+                {isUploading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Upload className="w-3.5 h-3.5" />
+                )}
+                <span>Upload New CSV</span>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </div>
+
+            {uploadError && (
+              <div className="mb-2 p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
+                <span>{uploadError}</span>
+              </div>
+            )}
+
             {isLoadingFiles ? (
               <div className="flex items-center gap-2 text-xs text-slate-500 py-2">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 <span>Scanning raw files directory...</span>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-2">
+              <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
                 {files.map((file) => (
                   <label
                     key={file.filename}

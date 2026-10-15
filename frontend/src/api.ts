@@ -134,6 +134,16 @@ export const api = {
     return handleResponse(res);
   },
 
+  uploadPipelineFile: async (file: File): Promise<{ status: string; filename: string; size_bytes: number; message: string }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`${BASE_URL}/pipeline/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+    return handleResponse(res);
+  },
+
   // Data Quality
   getDataQualitySummary: async (): Promise<DataQualitySummary> => {
     const res = await fetch(`${BASE_URL}/data-quality/summary`);
