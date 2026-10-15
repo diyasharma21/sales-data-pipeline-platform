@@ -1,0 +1,21 @@
+order_id,order_date,customer_id,product,category,quantity,unit_price,region
+ORD-2024-2001,2024-02-01,CUST-201,Mechanical Keyboard,Electronics,3,89.99,North
+ORD-2024-2002,2024-02-01,CUST-202,Wireless Mouse,Accessories,4,24.50,West
+ORD-2024-2003,2024-02-02,CUST-203,Ergonomic Chair,Furniture,1,249.00,Central
+ORD-2024-2004,2024-02-02,CUST-204,USB-C Hub,Accessories,2,35.00,East
+ORD-2024-2005,2024-02-03,CUST-205,4K Gaming Monitor,Electronics,1,399.99,South
+ORD-2024-2006,2024-02-03,CUST-206,Noise Cancelling Headphones,Audio,2,149.95,North
+ORD-2024-2007,2024-02-04,CUST-207,Desk Pad,Office Supplies,3,18.00,West
+ORD-2024-2008,2024-02-04,CUST-208,Laptop Stand,Accessories,2,42.50,South
+ORD-2024-2009,2024-02-05,CUST-209,Bluetooth Speaker,Audio,1,79.99,East
+ORD-2024-2010,2024-02-05,CUST-210,Standing Desk,Furniture,1,450.00,Central
+ORD-2024-2011,2024-02-06,CUST-211,Webcam 1080p,Electronics,2,65.00,North
+ORD-2024-2012,2024-02-06,CUST-212,Gel Pen Set,Office Supplies,5,12.50,East
+ORD-2024-2013,2024-02-07,CUST-213,UltraWide Monitor,Electronics,1,550.00,West
+ORD-2024-2014,2024-02-07,CUST-214,Studio Microphone,Audio,1,119.00,South
+ORD-2024-2015,2024-02-08,CUST-215,Cable Management Sleeves,Accessories,4,15.00,North
+ORD-2024-2016,2024-02-08,CUST-216,LED Desk Lamp,Furniture,2,38.99,Central
+ORD-2024-2017,2024-02-09,CUST-217,Wireless Presenter,Electronics,2,29.99,South
+ORD-2024-2018,2024-02-09,CUST-218,Document Organizer,Office Supplies,3,22.00,West
+ORD-2024-2019,2024-02-10,CUST-219,Surge Protector,Accessories,3,28.50,East
+ORD-2024-2020,2024-02-10,CUST-220,Wireless Earbuds,Audio,1,89.00,Central

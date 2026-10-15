@@ -1,0 +1,12 @@
+# Core Data Processing and Pipeline
+pandas>=2.0.0,<3.0.0
+SQLAlchemy>=2.0.0,<3.0.0
+psycopg2-binary>=2.9.9
+python-dotenv>=1.0.0
+
+# Testing and Code Quality
+pytest>=8.0.0
+pytest-cov>=4.0.0
+
+# CLI and Table Formatting (Optional for terminal analytics display)
+tabulate>=0.9.0
