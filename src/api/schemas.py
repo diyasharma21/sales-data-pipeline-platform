@@ -175,3 +175,22 @@ class TableDataResponse(BaseModel):
     total_pages: int
     columns: List[str]
     rows: List[Dict[str, Any]]
+
+
+class ManualOrderInput(BaseModel):
+    order_id: str
+    order_date: str
+    customer_id: str
+    product: str
+    category: str
+    quantity: int
+    unit_price: float
+    region: str
+
+
+class ManualOrderResponse(BaseModel):
+    status: str
+    message: str
+    order_id: str
+    is_valid: bool
+    rejection_reason: Optional[str] = None

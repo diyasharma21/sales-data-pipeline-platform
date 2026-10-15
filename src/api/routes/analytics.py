@@ -1,19 +1,23 @@
-"""Sales Analytics endpoints."""
-
+from datetime import datetime
 import math
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query
+import pandas as pd
 from sqlalchemy import text
 
 from src.api.schemas import (
     CategoryBreakdownItem,
+    ManualOrderInput,
+    ManualOrderResponse,
     PaginatedResponse,
     RegionBreakdownItem,
     RevenueTrendItem,
     SalesRecordItem,
     TopProductItem,
 )
-from src.load import get_db_engine
+from src.load import get_db_engine, load_rejected_records, load_sales_records_idempotent
+from src.transform import transform_sales_data
+from src.validate import validate_sales_dataframe
 
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
 
@@ -261,6 +265,58 @@ def get_sales_records(
                 page=page,
                 page_size=page_size,
                 total_pages=total_pages,
+            )
+    finally:
+        engine.dispose()
+
+
+@router.post("/orders", response_model=ManualOrderResponse)
+def ingest_manual_order(payload: ManualOrderInput) -> ManualOrderResponse:
+    """Directly ingest a single sales transaction without needing a CSV file.
+
+    Validates against business rules and either upserts into sales_records or
+    quarantines into rejected_sales_records.
+    """
+    df_raw = pd.DataFrame([
+        {
+            "order_id": payload.order_id,
+            "order_date": payload.order_date,
+            "customer_id": payload.customer_id,
+            "product": payload.product,
+            "category": payload.category,
+            "quantity": payload.quantity,
+            "unit_price": payload.unit_price,
+            "region": payload.region,
+        }
+    ])
+
+    validation_result = validate_sales_dataframe(df_raw, source_file="direct_api_ingest")
+    engine = get_db_engine()
+
+    try:
+        if not validation_result.accepted_df.empty:
+            df_transformed = transform_sales_data(validation_result.accepted_df)
+            load_sales_records_idempotent(engine, df_transformed)
+            return ManualOrderResponse(
+                status="SUCCESS",
+                message=f"Order '{payload.order_id}' validated and upserted into database.",
+                order_id=payload.order_id,
+                is_valid=True,
+            )
+        else:
+            reason = str(validation_result.rejected_df.iloc[0]["rejection_reason"])
+            run_id = f"DIRECT-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            load_rejected_records(
+                engine,
+                validation_result.rejected_df,
+                pipeline_run_id=run_id,
+            )
+            return ManualOrderResponse(
+                status="REJECTED",
+                message=f"Order '{payload.order_id}' quarantined: {reason}",
+                order_id=payload.order_id,
+                is_valid=False,
+                rejection_reason=reason,
             )
     finally:
         engine.dispose()

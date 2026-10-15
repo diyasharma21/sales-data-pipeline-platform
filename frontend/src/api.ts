@@ -101,6 +101,24 @@ export const api = {
     return handleResponse<PaginatedResponse<SalesRecordItem>>(res);
   },
 
+  ingestOrder: async (orderData: {
+    order_id: string;
+    order_date: string;
+    customer_id: string;
+    product: string;
+    category: string;
+    quantity: number;
+    unit_price: number;
+    region: string;
+  }): Promise<{ status: string; message: string; order_id: string; is_valid: boolean; rejection_reason?: string }> => {
+    const res = await fetch(`${BASE_URL}/analytics/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(orderData),
+    });
+    return handleResponse(res);
+  },
+
   // Pipeline Monitoring
   getPipelineSummary: async (): Promise<PipelineOverviewSummary> => {
     const res = await fetch(`${BASE_URL}/pipeline/summary`);

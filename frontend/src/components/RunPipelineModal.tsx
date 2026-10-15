@@ -1,5 +1,16 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { X, Play, CheckCircle2, AlertTriangle, FileText, Loader2, Upload, Plus } from 'lucide-react';
+import {
+  X,
+  Play,
+  CheckCircle2,
+  AlertTriangle,
+  FileText,
+  Loader2,
+  Upload,
+  PlusCircle,
+  Layers,
+  Send,
+} from 'lucide-react';
 import { api } from '../api';
 import { RawFileItem } from '../types';
 
@@ -14,12 +25,30 @@ export const RunPipelineModal: React.FC<RunPipelineModalProps> = ({
   onClose,
   onSuccess,
 }) => {
+  const [activeTab, setActiveTab] = useState<'batch' | 'manual'>('batch');
+
+  // Batch CSV state
   const [files, setFiles] = useState<RawFileItem[]>([]);
   const [selectedFile, setSelectedFile] = useState<string>('sales_sample.csv');
   const [isLoadingFiles, setIsLoadingFiles] = useState<boolean>(false);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState<boolean>(false);
+
+  // Manual Order state
+  const [manualOrder, setManualOrder] = useState({
+    order_id: `ORD-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+    order_date: new Date().toISOString().split('T')[0],
+    customer_id: 'CUST-5001',
+    product: 'Mechanical Gaming Keyboard',
+    category: 'Electronics',
+    quantity: 1,
+    unit_price: 129.99,
+    region: 'North',
+  });
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+
+  // Result banner
   const [executionResult, setExecutionResult] = useState<{
     status: string;
     message: string;
@@ -46,8 +75,14 @@ export const RunPipelineModal: React.FC<RunPipelineModalProps> = ({
       setExecutionResult(null);
       setUploadError(null);
       refreshFiles();
+      setManualOrder((prev) => ({
+        ...prev,
+        order_id: `ORD-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+      }));
     }
   }, [isOpen]);
+
+  if (!isOpen) return null;
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -75,9 +110,7 @@ export const RunPipelineModal: React.FC<RunPipelineModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
-  const handleRun = async () => {
+  const handleRunBatch = async () => {
     setIsRunning(true);
     setExecutionResult(null);
 
@@ -98,6 +131,39 @@ export const RunPipelineModal: React.FC<RunPipelineModalProps> = ({
     }
   };
 
+  const handleManualOrderSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmittingOrder(true);
+    setExecutionResult(null);
+
+    try {
+      const res = await api.ingestOrder({
+        ...manualOrder,
+        quantity: Number(manualOrder.quantity),
+        unit_price: Number(manualOrder.unit_price),
+      });
+
+      setExecutionResult({
+        status: res.status,
+        message: res.message,
+      });
+      onSuccess();
+
+      // Generate a new Order ID for the next entry
+      setManualOrder((prev) => ({
+        ...prev,
+        order_id: `ORD-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+      }));
+    } catch (err: any) {
+      setExecutionResult({
+        status: 'FAILED',
+        message: err.message || 'Order ingestion failed.',
+      });
+    } finally {
+      setIsSubmittingOrder(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xl max-w-lg w-full overflow-hidden">
@@ -108,116 +174,283 @@ export const RunPipelineModal: React.FC<RunPipelineModalProps> = ({
               <Play className="w-4 h-4 fill-current" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900">Trigger ETL Pipeline</h3>
-              <p className="text-xs text-slate-500">Extract, validate, transform & load batch dataset</p>
+              <h3 className="text-base font-bold text-slate-900">Data Ingestion Center</h3>
+              <p className="text-xs text-slate-500">Import CSV batches or submit direct transactions</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
+        {/* Tab Switcher */}
+        <div className="px-6 pt-3 border-b border-slate-100 flex items-center gap-4 bg-white">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('batch');
+              setExecutionResult(null);
+            }}
+            className={`pb-2.5 text-xs font-semibold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+              activeTab === 'batch'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>Batch CSV Pipeline</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('manual');
+              setExecutionResult(null);
+            }}
+            className={`pb-2.5 text-xs font-semibold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+              activeTab === 'manual'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <PlusCircle className="w-3.5 h-3.5" />
+            <span>Direct Order Entry (No CSV)</span>
+          </button>
+        </div>
+
         {/* Modal Body */}
-        <div className="p-6 space-y-5">
-          {/* File Selection */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                Select Raw Source File (data/raw/)
-              </label>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-                className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100/80 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
-              >
-                {isUploading ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Upload className="w-3.5 h-3.5" />
-                )}
-                <span>Upload New CSV</span>
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-            </div>
-
-            {uploadError && (
-              <div className="mb-2 p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
-                <span>{uploadError}</span>
-              </div>
-            )}
-
-            {isLoadingFiles ? (
-              <div className="flex items-center gap-2 text-xs text-slate-500 py-2">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>Scanning raw files directory...</span>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-1">
-                {files.map((file) => (
-                  <label
-                    key={file.filename}
-                    className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
-                      selectedFile === file.filename
-                        ? 'border-indigo-500 bg-indigo-50/50 text-indigo-950 font-medium'
-                        : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="radio"
-                        name="rawFile"
-                        value={file.filename}
-                        checked={selectedFile === file.filename}
-                        onChange={(e) => setSelectedFile(e.target.value)}
-                        className="text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <FileText className="w-4 h-4 text-slate-400" />
-                      <span className="text-xs font-mono">{file.filename}</span>
-                    </div>
-                    <span className="text-[11px] text-slate-400 font-normal">
-                      {(file.size_bytes / 1024).toFixed(1)} KB
-                    </span>
+        <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
+          {activeTab === 'batch' ? (
+            <>
+              {/* File Selection */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                    Select Raw File (data/raw/)
                   </label>
-                ))}
-              </div>
-            )}
-          </div>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100/80 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                  >
+                    {isUploading ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Upload className="w-3.5 h-3.5" />
+                    )}
+                    <span>Upload CSV</span>
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </div>
 
-          {/* Workflow Steps Preview */}
-          <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200/80 text-xs text-slate-600 space-y-2">
-            <div className="font-semibold text-slate-800 text-[11px] uppercase tracking-wider">
-              Pipeline Execution Sequence
-            </div>
-            <ul className="space-y-1.5 text-[11px] text-slate-600">
-              <li className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                <span>Extraction & required schema header verification</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span>Field-level quality checks & quarantine categorization</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-                <span>Date parsing, numeric normalization & revenue calculation</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                <span>Idempotent Upsert into PostgreSQL (preventing duplicates)</span>
-              </li>
-            </ul>
-          </div>
+                {uploadError && (
+                  <div className="mb-2 p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
+                    <span>{uploadError}</span>
+                  </div>
+                )}
+
+                {isLoadingFiles ? (
+                  <div className="flex items-center gap-2 text-xs text-slate-500 py-2">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Scanning raw files directory...</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto pr-1">
+                    {files.map((file) => (
+                      <label
+                        key={file.filename}
+                        className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                          selectedFile === file.filename
+                            ? 'border-indigo-500 bg-indigo-50/50 text-indigo-950 font-medium'
+                            : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="radio"
+                            name="rawFile"
+                            value={file.filename}
+                            checked={selectedFile === file.filename}
+                            onChange={(e) => setSelectedFile(e.target.value)}
+                            className="text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <FileText className="w-4 h-4 text-slate-400" />
+                          <span className="text-xs font-mono">{file.filename}</span>
+                        </div>
+                        <span className="text-[11px] text-slate-400 font-normal">
+                          {(file.size_bytes / 1024).toFixed(1)} KB
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Workflow Steps Preview */}
+              <div className="bg-slate-50 rounded-xl p-3 border border-slate-200/80 text-xs text-slate-600 space-y-1.5">
+                <div className="font-semibold text-slate-800 text-[11px] uppercase tracking-wider">
+                  Automated ETL Operations
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                    <span>Header verification</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                    <span>Quarantine check</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0" />
+                    <span>Revenue calculation</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                    <span>Idempotent Upsert</span>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            /* Manual / Direct Order Entry Form */
+            <form id="manual-order-form" onSubmit={handleManualOrderSubmit} className="space-y-3">
+              <div className="p-3 bg-indigo-50/60 border border-indigo-100 rounded-xl text-xs text-indigo-900 leading-relaxed">
+                Test real-time validation and upsert without uploading a file. If data violates business rules (e.g. negative price/quantity), it will be quarantined into Data Quality.
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 uppercase mb-1">
+                    Order ID
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={manualOrder.order_id}
+                    onChange={(e) => setManualOrder({ ...manualOrder, order_id: e.target.value })}
+                    className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 uppercase mb-1">
+                    Order Date
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={manualOrder.order_date}
+                    onChange={(e) => setManualOrder({ ...manualOrder, order_date: e.target.value })}
+                    className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 uppercase mb-1">
+                    Customer ID
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={manualOrder.customer_id}
+                    onChange={(e) => setManualOrder({ ...manualOrder, customer_id: e.target.value })}
+                    className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 uppercase mb-1">
+                    Product Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={manualOrder.product}
+                    onChange={(e) => setManualOrder({ ...manualOrder, product: e.target.value })}
+                    className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 uppercase mb-1">
+                    Category
+                  </label>
+                  <select
+                    value={manualOrder.category}
+                    onChange={(e) => setManualOrder({ ...manualOrder, category: e.target.value })}
+                    className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                  >
+                    <option value="Electronics">Electronics</option>
+                    <option value="Accessories">Accessories</option>
+                    <option value="Audio">Audio</option>
+                    <option value="Furniture">Furniture</option>
+                    <option value="Office Supplies">Office Supplies</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 uppercase mb-1">
+                    Region
+                  </label>
+                  <select
+                    value={manualOrder.region}
+                    onChange={(e) => setManualOrder({ ...manualOrder, region: e.target.value })}
+                    className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                  >
+                    <option value="North">North</option>
+                    <option value="South">South</option>
+                    <option value="East">East</option>
+                    <option value="West">West</option>
+                    <option value="Central">Central</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 uppercase mb-1">
+                    Quantity
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={manualOrder.quantity}
+                    onChange={(e) => setManualOrder({ ...manualOrder, quantity: Number(e.target.value) })}
+                    className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 uppercase mb-1">
+                    Unit Price ($)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={manualOrder.unit_price}
+                    onChange={(e) => setManualOrder({ ...manualOrder, unit_price: Number(e.target.value) })}
+                    className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+            </form>
+          )}
 
           {/* Execution Result Banner */}
           {executionResult && (
@@ -236,7 +469,9 @@ export const RunPipelineModal: React.FC<RunPipelineModalProps> = ({
               <div className="text-xs">
                 <div className="font-semibold">{executionResult.message}</div>
                 <div className="text-[11px] mt-0.5 opacity-80">
-                  Data warehouse and analytics have been updated.
+                  {executionResult.status === 'SUCCESS'
+                    ? 'Database updated and charts refreshed in real-time.'
+                    : 'Record was quarantined into rejected_sales_records table.'}
                 </div>
               </div>
             </div>
@@ -247,28 +482,50 @@ export const RunPipelineModal: React.FC<RunPipelineModalProps> = ({
         <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50/50">
           <button
             onClick={onClose}
-            disabled={isRunning}
+            disabled={isRunning || isSubmittingOrder}
             className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
           >
-            Cancel
+            Close
           </button>
-          <button
-            onClick={handleRun}
-            disabled={isRunning}
-            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 rounded-lg shadow-sm shadow-indigo-100 transition-all cursor-pointer"
-          >
-            {isRunning ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>Processing Batch...</span>
-              </>
-            ) : (
-              <>
-                <Play className="w-3.5 h-3.5 fill-current" />
-                <span>Run Pipeline</span>
-              </>
-            )}
-          </button>
+
+          {activeTab === 'batch' ? (
+            <button
+              onClick={handleRunBatch}
+              disabled={isRunning || files.length === 0}
+              className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 rounded-lg shadow-sm shadow-indigo-100 transition-all cursor-pointer"
+            >
+              {isRunning ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Processing Batch...</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  <span>Run Pipeline</span>
+                </>
+              )}
+            </button>
+          ) : (
+            <button
+              type="submit"
+              form="manual-order-form"
+              disabled={isSubmittingOrder}
+              className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 rounded-lg shadow-sm shadow-emerald-100 transition-all cursor-pointer"
+            >
+              {isSubmittingOrder ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Validating & Upserting...</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Submit Transaction</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>
