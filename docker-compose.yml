@@ -1,23 +1,62 @@
 version: '3.8'
 
 services:
+  # 1. PostgreSQL Analytical Data Warehouse
   postgres:
     image: postgres:15-alpine
     container_name: sales_data_warehouse
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgrespassword
-      POSTGRES_DB: sales_dw
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgrespassword}
+      POSTGRES_DB: ${DB_NAME:-sales_dw}
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./sql/schema.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d sales_dw"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-sales_dw}"]
       interval: 5s
       timeout: 5s
       retries: 5
+
+  # 2. FastAPI Analytics & Pipeline API Service
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sales_backend_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgrespassword}
+      DB_NAME: ${DB_NAME:-sales_dw}
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data/raw:/app/data/raw
+      - ./logs:/app/logs
+
+  # 3. React 19 Frontend Web Dashboard (Served via Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sales_dashboard_ui
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "5173:80"
 
 volumes:
   pgdata:
